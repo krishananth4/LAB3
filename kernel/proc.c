@@ -16,7 +16,7 @@ int nextpid = 1;
 struct spinlock pid_lock;
 
 extern void forkret(void);
-static void freeproc(struct proc *p);
+static void freeproc(struct proc *p, int is_child);
 
 extern char trampoline[]; // trampoline.S
 
@@ -127,7 +127,7 @@ found:
 
   // Allocate a trapframe page.
   if((p->trapframe = (struct trapframe *)kalloc()) == 0){
-    freeproc(p);
+    freeproc(p,0);
     release(&p->lock);
     return 0;
   }
@@ -135,7 +135,7 @@ found:
   // An empty user page table.
   p->pagetable = proc_pagetable(p);
   if(p->pagetable == 0){
-    freeproc(p);
+    freeproc(p,0);
     release(&p->lock);
     return 0;
   }
@@ -154,14 +154,22 @@ found:
 // including user pages.
 // p->lock must be held.
 static void
-freeproc(struct proc *p)
+freeproc(struct proc *p, int is_child)
 {
   if(p->trapframe){
-    kfree((void*)p->trapframe);
-    uvmunmap(p->pagetable, TRAPFRAME - p->thread_id * PGSIZE, 1, 0);
+    if (is_child) {
+      uvmunmap(p->pagetable, TRAPFRAME - p->thread_id * PGSIZE, 1, 1);
+    } else {
+      kfree((void*)p->trapframe);
+    }
   }
   p->trapframe = 0;
   //pagetable is not deallocated
+  if(p->pagetable) {
+    if(!is_child){
+      proc_freepagetable(p->pagetable, p->sz);
+    }
+  }
   p->pagetable = 0;
   p->sz = 0;
   p->pid = 0;
@@ -292,7 +300,7 @@ fork(void)
 
   // Copy user memory from parent to child.
   if(uvmcopy(p->pagetable, np->pagetable, p->sz) < 0){
-    freeproc(np);
+    freeproc(np,0);
     release(&np->lock);
     return -1;
   }
@@ -410,10 +418,6 @@ wait(uint64 addr)
         if(pp->state == ZOMBIE){
           // Found one.
           pid = pp->pid;
-          //since wait is called, and one child thread is found to be zombie here, update how many child threads p has, so in the future thread id can be reused.
-          acquire(&p->lock);
-          p->num_children = p->num_children - 1;
-          release(&p->lock);
 
           if(addr != 0 && copyout(p->pagetable, addr, (char *)&pp->xstate,
                                   sizeof(pp->xstate)) < 0) {
@@ -421,7 +425,7 @@ wait(uint64 addr)
             release(&wait_lock);
             return -1;
           }
-          freeproc(pp);
+          freeproc(pp, pp->thread_id > 0); //this differentiates between new processes made from fork() and clone()- threads require different handling than forked processes
           release(&pp->lock);
           release(&wait_lock);
           return pid;
@@ -725,7 +729,7 @@ found:
   
   // Allocate a trapframe page.
   if((p->trapframe = (struct trapframe *)kalloc()) == 0){
-    freeproc(p);
+    freeproc(p,0); //this process is not going to be cloned thread, so deallocating trapframe and pagetable is fine 
     release(&p->lock);
     return 0;
   }
