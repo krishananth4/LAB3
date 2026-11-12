@@ -425,7 +425,8 @@ wait(uint64 addr)
             release(&wait_lock);
             return -1;
           }
-          freeproc(pp, pp->thread_id > 0); //this differentiates between new processes made from fork() and clone()- threads require different handling than forked processes
+          int is_child = (pp->thread_id > 0) ? 1 : 0;
+          freeproc(pp, is_child); //this differentiates between new processes made from fork() and clone()- threads require different handling than forked processes
           release(&pp->lock);
           release(&wait_lock);
           return pid;
