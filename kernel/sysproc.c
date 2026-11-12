@@ -91,3 +91,14 @@ sys_uptime(void)
   release(&tickslock);
   return xticks;
 }
+
+uint64
+sys_clone(void)
+{
+  uint64 stack;
+  argaddr(0, &stack);
+
+  int res = clone_thread((void *) stack);
+
+  return res;
+}
