@@ -127,9 +127,8 @@ usertrapret(void)
   // and switches to user mode with sret.
   uint64 trampoline_userret = TRAMPOLINE + (userret - trampoline);
 
-  //telling kernel explicitly the new trapframe location for child thread; if p is not a child thread then use normal TRAPFRAME
-
-  ((void (*)(uint64, uint64))trampoline_userret)(TRAPFRAME + p->thread_id * PGSIZE, satp);
+  uint64 tf = TRAPFRAME - PGSIZE * p->thread_id;
+  ((void (*)(uint64, uint64))trampoline_userret)(tf, satp);
 }
 
 // interrupts and exceptions from kernel code go here via kernelvec,
