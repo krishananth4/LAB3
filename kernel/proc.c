@@ -747,6 +747,11 @@ found:
 int
 clone_thread(void * stack)
 {
+
+  if(!stack) {
+    return -1;
+  }
+  
   int i, pid;
   struct proc *np;
   struct proc *p = myproc();
