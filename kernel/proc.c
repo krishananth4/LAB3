@@ -146,9 +146,7 @@ found:
   p->context.ra = (uint64)forkret;
   p->context.sp = p->kstack + PGSIZE;
   p->thread_id = 0;
-  acquire(&p->lock);
   p->num_children = 0;
-  release(&p->lock);
   return p;
 }
 
