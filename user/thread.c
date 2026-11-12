@@ -1,6 +1,8 @@
+#include "user/thread.h"
 #include "user/user.h"
 #include "kernel/riscv.h"
-#include "user/thread.h"
+
+#include <stddef.h>
 
 void lock_init(struct lock_t* lock)
 {
